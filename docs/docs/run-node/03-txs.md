@@ -118,7 +118,7 @@ Before generating a transaction, a new instance of a `TxBuilder` needs to be cre
 
 ```go
 import (
-	"github.com/cosmos/cosmos-sdk/simapp"
+	"cosmossdk.io/simapp"
 )
 
 func sendTx() error {

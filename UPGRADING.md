@@ -97,7 +97,7 @@ All the feegrant imports are now renamed to use `cosmossdk.io/x/feegrant` instea
 ##### Extract upgrade to a standalone module
 
 The `x/upgrade` module is extracted to have a separate go.mod file which allows it to be a standalone module. 
-All the upgrade imports are now renamed to use `cosmossdk.io/x/upgrade` instead of `github.com/cosmos/cosmos-sdk/x/upgrade` across the SDK.
+All the upgrade imports are now renamed to use `cosmossdk.io/x/upgrade` instead of `cosmossdk.io/x/upgrade` across the SDK.
 
 ## [v0.47.x](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.47.0)
 
@@ -263,7 +263,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	v4 "github.com/cosmos/cosmos-sdk/x/gov/migrations/v4"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 )
 
 func (app SimApp) RegisterUpgradeHandlers() {
