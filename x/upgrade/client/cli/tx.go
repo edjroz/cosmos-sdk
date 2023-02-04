@@ -1,29 +1,19 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
-	"cosmossdk.io/x/upgrade/plan"
 	"cosmossdk.io/x/upgrade/types"
-
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/cosmos/cosmos-sdk/x/gov/client/cli"
+	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 const (
 	FlagUpgradeHeight = "upgrade-height"
 	FlagUpgradeInfo   = "upgrade-info"
-	FlagNoValidate    = "no-validate"
-	FlagDaemonName    = "daemon-name"
-	FlagAuthority     = "authority"
 )
 
 // GetTxCmd returns the transaction commands for this module
@@ -32,11 +22,6 @@ func GetTxCmd() *cobra.Command {
 		Use:   types.ModuleName,
 		Short: "Upgrade transaction subcommands",
 	}
-
-	cmd.AddCommand(
-		NewCmdSubmitUpgradeProposal(),
-		NewCmdSubmitCancelUpgradeProposal(),
-	)
 
 	return cmd
 }
@@ -49,76 +34,49 @@ func NewCmdSubmitUpgradeProposal() *cobra.Command {
 		Short: "Submit a software upgrade proposal",
 		Long: "Submit a software upgrade along with an initial deposit.\n" +
 			"Please specify a unique name and height for the upgrade to take effect.\n" +
-			"You may include info to reference a binary download link, in a format compatible with: https://docs.cosmos.network/main/tooling/cosmovisor",
+			"You may include info to reference a binary download link, in a format compatible with: https://github.com/cosmos/cosmos-sdk/tree/master/cosmovisor",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
-			proposal, err := cli.ReadGovPropFlags(clientCtx, cmd.Flags())
-			if err != nil {
-				return err
-			}
-
 			name := args[0]
-			p, err := parsePlan(cmd.Flags(), name)
+			content, err := parseArgsToContent(cmd, name)
 			if err != nil {
 				return err
 			}
 
-			noValidate, err := cmd.Flags().GetBool(FlagNoValidate)
+			from := clientCtx.GetFromAddress()
+
+			depositStr, err := cmd.Flags().GetString(cli.FlagDeposit)
+			if err != nil {
+				return err
+			}
+			deposit, err := sdk.ParseCoinsNormalized(depositStr)
 			if err != nil {
 				return err
 			}
 
-			if !noValidate {
-				var daemonName string
-				if daemonName, err = cmd.Flags().GetString(FlagDaemonName); err != nil {
-					return err
-				}
-
-				var planInfo *plan.Info
-				if planInfo, err = plan.ParseInfo(p.Info); err != nil {
-					return err
-				}
-				if err = planInfo.ValidateFull(daemonName); err != nil {
-					return err
-				}
+			isExpedited, err := cmd.Flags().GetBool(cli.FlagIsExpedited)
+			if err != nil {
+				return err
 			}
 
-			authority, _ := cmd.Flags().GetString(FlagAuthority)
-			if authority != "" {
-				if _, err = sdk.AccAddressFromBech32(authority); err != nil {
-					return fmt.Errorf("invalid authority address: %w", err)
-				}
-			} else {
-				authority = sdk.AccAddress(address.Module("gov")).String()
+			msg, err := gov.NewMsgSubmitProposalWithExpedited(content, deposit, from, isExpedited)
+			if err != nil {
+				return err
 			}
 
-			if err := proposal.SetMsgs([]sdk.Msg{
-				&types.MsgSoftwareUpgrade{
-					Authority: authority,
-					Plan:      p,
-				},
-			}); err != nil {
-				return fmt.Errorf("failed to create cancel upgrade message: %w", err)
-			}
-
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), proposal)
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
+	cmd.Flags().String(cli.FlagTitle, "", "title of proposal")
+	cmd.Flags().String(cli.FlagDescription, "", "description of proposal")
+	cmd.Flags().String(cli.FlagDeposit, "", "deposit of proposal")
+	cmd.Flags().Bool(cli.FlagIsExpedited, false, "flag indicating whether a proposal is expedited")
 	cmd.Flags().Int64(FlagUpgradeHeight, 0, "The height at which the upgrade must happen")
-	cmd.Flags().String(FlagUpgradeInfo, "", "Info for the upgrade plan such as new version download urls, etc.")
-	cmd.Flags().Bool(FlagNoValidate, false, "Skip validation of the upgrade info (dangerous!)")
-	cmd.Flags().String(FlagDaemonName, getDefaultDaemonName(), "The name of the executable being upgraded (for upgrade-info validation). Default is the DAEMON_NAME env var if set, or else this executable")
-	cmd.Flags().String(FlagAuthority, "", "The address of the upgrade module authority (defaults to gov)")
-
-	// add common proposal flags
-	flags.AddTxFlagsToCmd(cmd)
-	cli.AddGovPropFlagsToCmd(cmd)
-	cmd.MarkFlagRequired(cli.FlagTitle)
+	cmd.Flags().String(FlagUpgradeInfo, "", "Optional info for the planned upgrade such as commit hash, etc.")
 
 	return cmd
 }
@@ -135,51 +93,76 @@ func NewCmdSubmitCancelUpgradeProposal() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			from := clientCtx.GetFromAddress()
 
-			proposal, err := cli.ReadGovPropFlags(clientCtx, cmd.Flags())
+			depositStr, err := cmd.Flags().GetString(cli.FlagDeposit)
 			if err != nil {
 				return err
 			}
 
-			authority, _ := cmd.Flags().GetString(FlagAuthority)
-			if authority != "" {
-				if _, err = sdk.AccAddressFromBech32(authority); err != nil {
-					return fmt.Errorf("invalid authority address: %w", err)
-				}
-			} else {
-				authority = sdk.AccAddress(address.Module("gov")).String()
+			deposit, err := sdk.ParseCoinsNormalized(depositStr)
+			if err != nil {
+				return err
 			}
 
-			if err := proposal.SetMsgs([]sdk.Msg{
-				&types.MsgCancelUpgrade{
-					Authority: authority,
-				},
-			}); err != nil {
-				return fmt.Errorf("failed to create cancel upgrade message: %w", err)
+			title, err := cmd.Flags().GetString(cli.FlagTitle)
+			if err != nil {
+				return err
 			}
 
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), proposal)
+			description, err := cmd.Flags().GetString(cli.FlagDescription)
+			if err != nil {
+				return err
+			}
+
+			isExpedited, err := cmd.Flags().GetBool(cli.FlagIsExpedited)
+			if err != nil {
+				return err
+			}
+
+			content := types.NewCancelSoftwareUpgradeProposal(title, description)
+
+			msg, err := gov.NewMsgSubmitProposalWithExpedited(content, deposit, from, isExpedited)
+			if err != nil {
+				return err
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
-	cmd.Flags().String(FlagAuthority, "", "The address of the upgrade module authority (defaults to gov)")
-
-	// add common proposal flags
-	flags.AddTxFlagsToCmd(cmd)
-	cli.AddGovPropFlagsToCmd(cmd)
+	cmd.Flags().String(cli.FlagTitle, "", "title of proposal")
+	cmd.Flags().String(cli.FlagDescription, "", "description of proposal")
+	cmd.Flags().String(cli.FlagDeposit, "", "deposit of proposal")
+	cmd.Flags().Bool(cli.FlagIsExpedited, false, "flag indicating whether a proposal is expedited")
 	cmd.MarkFlagRequired(cli.FlagTitle)
+	cmd.MarkFlagRequired(cli.FlagDescription)
 
 	return cmd
 }
 
-// getDefaultDaemonName gets the default name to use for the daemon.
-// If a DAEMON_NAME env var is set, that is used.
-// Otherwise, the last part of the currently running executable is used.
-func getDefaultDaemonName() string {
-	// DAEMON_NAME is specifically used here to correspond with the Cosmovisor setup env vars.
-	name := os.Getenv("DAEMON_NAME")
-	if len(name) == 0 {
-		_, name = filepath.Split(os.Args[0])
+func parseArgsToContent(cmd *cobra.Command, name string) (gov.Content, error) {
+	title, err := cmd.Flags().GetString(cli.FlagTitle)
+	if err != nil {
+		return nil, err
 	}
-	return name
+
+	description, err := cmd.Flags().GetString(cli.FlagDescription)
+	if err != nil {
+		return nil, err
+	}
+
+	height, err := cmd.Flags().GetInt64(FlagUpgradeHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := cmd.Flags().GetString(FlagUpgradeInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	plan := types.Plan{Name: name, Height: height, Info: info}
+	content := types.NewSoftwareUpgradeProposal(title, description, plan)
+	return content, nil
 }
