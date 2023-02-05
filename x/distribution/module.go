@@ -28,6 +28,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/distribution/simulation"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -185,6 +186,12 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 	simulation.RandomizedGenState(simState)
 }
 
+// ProposalContents returns all the distribution content functions used to
+// simulate governance proposals.
+func (am AppModule) ProposalContents(simState module.SimulationState) []simtypes.WeightedProposalContent {
+	return simulation.ProposalContents(am.keeper)
+}
+
 // ProposalMsgs returns msgs used for governance proposals for simulations.
 func (AppModule) ProposalMsgs(simState module.SimulationState) []simtypes.WeightedProposalMsg {
 	return simulation.ProposalMsgs()
@@ -233,6 +240,7 @@ type DistrOutputs struct {
 	DistrKeeper keeper.Keeper
 	Module      appmodule.AppModule
 	Hooks       staking.StakingHooksWrapper
+	GovHandler  govv1beta1.HandlerRoute
 }
 
 func ProvideModule(in DistrInputs) DistrOutputs {
@@ -263,5 +271,6 @@ func ProvideModule(in DistrInputs) DistrOutputs {
 		DistrKeeper: k,
 		Module:      m,
 		Hooks:       staking.StakingHooksWrapper{StakingHooks: k.Hooks()},
+		GovHandler:  govv1beta1.HandlerRoute{Handler: NewCommunityPoolSpendProposalHandler(k), RouteKey: types.RouterKey},
 	}
 }

@@ -13,7 +13,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+
+	//govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 )
 
 // Transaction flags for the x/distribution module
@@ -328,7 +330,7 @@ Where proposal.json contains:
 
 			content := types.NewCommunityPoolSpendProposal(proposal.Title, proposal.Description, recpAddr, amount)
 
-			msg, err := govtypes.NewMsgSubmitProposalWithExpedited(content, deposit, from, isExpedited)
+			msg, err := govtypes.NewMsgSubmitProposal(content, deposit, from, isExpedited) // TODO: WithExpedited no longer needed
 			if err != nil {
 				return err
 			}
