@@ -126,25 +126,25 @@ func (k Keeper) UpdateAllowance(ctx context.Context, granter, grantee sdk.AccAdd
 	l := sdk.UnwrapSDKContext(ctx).Logger()
 	_, err := k.getGrant(ctx, granter, grantee)
 	if err != nil {
-		l.Info("[UpdateAllowance]: coudnt get grant")
+		l.Error("[UpdateAllowance]: coudnt get grant")
 		return err
 	}
 
 	grant, err := feegrant.NewGrant(granter, grantee, feeAllowance)
 	if err != nil {
-		l.Info("[UpdateAllowance]: coudnt new grant?")
+		l.Error("[UpdateAllowance]: coudnt new grant?")
 		return err
 	}
 
 	bz, err := k.cdc.Marshal(&grant)
 	if err != nil {
-		l.Info("[UpdateAllowance]: coudnt marshal")
+		l.Error("[UpdateAllowance]: coudnt marshal")
 		return err
 	}
 
 	err = store.Set(key, bz)
 	if err != nil {
-		l.Info("[UpdateAllowance]: coudnt update")
+		l.Error("[UpdateAllowance]: coudnt update")
 		return err
 	}
 
@@ -253,7 +253,7 @@ func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddr
 	grant, err := k.GetAllowance(ctx, granter, grantee)
 	l := sdk.UnwrapSDKContext(ctx).Logger()
 	if err != nil {
-		l.Info("[UseGrantedFees] Err retrieving allowance")
+		l.Error("[UseGrantedFees] Err retrieving allowance")
 		return err
 	}
 
@@ -263,7 +263,7 @@ func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddr
 		// Ignoring the `revokeFeeAllowance` error, because the user has enough grants to perform this transaction.
 		_ = k.revokeAllowance(ctx, granter, grantee)
 		if err != nil {
-			l.Info("[UseGrantedFees] Err revoking but not really ?")
+			l.Error("[UseGrantedFees] Err revoking but not really ?")
 			return err
 		}
 
@@ -273,7 +273,7 @@ func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddr
 	}
 
 	if err != nil {
-		l.Info("[UseGrantedFees] Err accepting")
+		l.Error("[UseGrantedFees] Err accepting")
 		return err
 	}
 
