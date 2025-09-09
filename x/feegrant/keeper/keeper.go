@@ -123,27 +123,28 @@ func (k Keeper) UpdateAllowance(ctx context.Context, granter, grantee sdk.AccAdd
 	store := k.storeService.OpenKVStore(ctx)
 	key := feegrant.FeeAllowanceKey(granter, grantee)
 
+	l := sdk.UnwrapSDKContext(ctx).Logger()
 	_, err := k.getGrant(ctx, granter, grantee)
 	if err != nil {
-		fmt.Println("[UpdateAllowance]: coudnt get grant")
+		l.Info("[UpdateAllowance]: coudnt get grant")
 		return err
 	}
 
 	grant, err := feegrant.NewGrant(granter, grantee, feeAllowance)
 	if err != nil {
-		fmt.Println("[UpdateAllowance]: coudnt new grant?")
+		l.Info("[UpdateAllowance]: coudnt new grant?")
 		return err
 	}
 
 	bz, err := k.cdc.Marshal(&grant)
 	if err != nil {
-		fmt.Println("[UpdateAllowance]: coudnt marshal")
+		l.Info("[UpdateAllowance]: coudnt marshal")
 		return err
 	}
 
 	err = store.Set(key, bz)
 	if err != nil {
-		fmt.Println("[UpdateAllowance]: coudnt update")
+		l.Info("[UpdateAllowance]: coudnt update")
 		return err
 	}
 
@@ -250,8 +251,9 @@ func (k Keeper) IterateAllFeeAllowances(ctx context.Context, cb func(grant feegr
 // UseGrantedFees will try to pay the given fee from the granter's account as requested by the grantee
 func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddress, fee sdk.Coins, msgs []sdk.Msg) error {
 	grant, err := k.GetAllowance(ctx, granter, grantee)
+	l := sdk.UnwrapSDKContext(ctx).Logger()
 	if err != nil {
-		fmt.Println("[UseGrantedFees] Err retrieving allowance")
+		l.Info("[UseGrantedFees] Err retrieving allowance")
 		return err
 	}
 
@@ -261,7 +263,7 @@ func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddr
 		// Ignoring the `revokeFeeAllowance` error, because the user has enough grants to perform this transaction.
 		_ = k.revokeAllowance(ctx, granter, grantee)
 		if err != nil {
-			fmt.Println("[UseGrantedFees] Err revoking but not really ?")
+			l.Info("[UseGrantedFees] Err revoking but not really ?")
 			return err
 		}
 
@@ -271,7 +273,7 @@ func (k Keeper) UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddr
 	}
 
 	if err != nil {
-		fmt.Println("[UseGrantedFees] Err accepting")
+		l.Info("[UseGrantedFees] Err accepting")
 		return err
 	}
 
