@@ -212,6 +212,7 @@ func (k Keeper) getGrant(ctx context.Context, granter, grantee sdk.AccAddress) (
 	key := feegrant.FeeAllowanceKey(granter, grantee)
 	l := sdk.UnwrapSDKContext(ctx).Logger()
 	l.Info(fmt.Sprintf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter))
+	fmt.Printf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter)
 	bz, err := store.Get(key)
 	if err != nil {
 		return nil, err
