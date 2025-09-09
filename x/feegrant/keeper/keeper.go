@@ -3,6 +3,8 @@ package keeper
 import (
 	"context"
 	"fmt"
+	logger "log"
+	"os"
 	"time"
 
 	"cosmossdk.io/core/store"
@@ -213,12 +215,15 @@ func (k Keeper) getGrant(ctx context.Context, granter, grantee sdk.AccAddress) (
 	l := sdk.UnwrapSDKContext(ctx).Logger()
 	l.Info(fmt.Sprintf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter))
 	fmt.Printf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter)
+	logger.Printf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter)
 	bz, err := store.Get(key)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(bz) == 0 {
+		logger.Printf("[getGrant]: we've looked for grant for grantee %s by granter %s", grantee, granter)
+		os.Exit(1)
 		return nil, sdkerrors.ErrNotFound.Wrap("fee-grant not found")
 	}
 
